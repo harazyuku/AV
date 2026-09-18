@@ -1,0 +1,89 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-av_search}
+      POSTGRES_USER: ${POSTGRES_USER:-av}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-av}
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U av -d av_search"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://av:av@db:5432/av_search}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      QUERY_AI_API_KEY: ${QUERY_AI_API_KEY:-}
+      QUERY_AI_MODEL: ${QUERY_AI_MODEL:-gemini-3.5-flash}
+      QUERY_AI_EMBEDDING_MODEL: ${QUERY_AI_EMBEDDING_MODEL:-gemini-embedding-2}
+      IMPORT_AI_API_KEY: ${IMPORT_AI_API_KEY:-}
+      IMPORT_AI_API_KEY_2: ${IMPORT_AI_API_KEY_2:-}
+      IMPORT_AI_API_KEY_3: ${IMPORT_AI_API_KEY_3:-}
+      IMPORT_AI_API_KEY_4: ${IMPORT_AI_API_KEY_4:-}
+      IMPORT_AI_API_KEY_5: ${IMPORT_AI_API_KEY_5:-}
+      IMPORT_AI_MODEL: ${IMPORT_AI_MODEL:-gemini-3.5-flash}
+      IMPORT_FRAME_COUNT: ${IMPORT_FRAME_COUNT:-30}
+      IMPORT_FRAME_WIDTH: ${IMPORT_FRAME_WIDTH:-640}
+      IMPORT_IMAGES_PER_KEY: ${IMPORT_IMAGES_PER_KEY:-6}
+      DESCRIPTION_AI_API_KEY: ${DESCRIPTION_AI_API_KEY:-}
+      DESCRIPTION_AI_MODEL: ${DESCRIPTION_AI_MODEL:-gemini-3.5-flash}
+      FANZA_AFFILIATE_ID: ${FANZA_AFFILIATE_ID:-}
+      MEDIA_DIR: /data/missav
+      MAX_VIDEO_BYTES: ${MAX_VIDEO_BYTES:-2147483648}
+      AUTO_IMPORT_ENABLED: ${AUTO_IMPORT_ENABLED:-false}
+      MISSAV_FEED_URL: ${MISSAV_FEED_URL:-}
+      AUTO_IMPORT_DAILY_LIMIT: ${AUTO_IMPORT_DAILY_LIMIT:-3}
+      AUTO_IMPORT_TIMEZONE: ${AUTO_IMPORT_TIMEZONE:-Asia/Tokyo}
+    ports: ["8000:8000"]
+    volumes: ["./data:/data"]
+    depends_on:
+      db: {condition: service_healthy}
+  worker:
+    build: ./backend
+    restart: unless-stopped
+    command: ["python", "-m", "app.worker"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://av:av@db:5432/av_search}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      QUERY_AI_API_KEY: ${QUERY_AI_API_KEY:-}
+      QUERY_AI_MODEL: ${QUERY_AI_MODEL:-gemini-3.5-flash}
+      QUERY_AI_EMBEDDING_MODEL: ${QUERY_AI_EMBEDDING_MODEL:-gemini-embedding-2}
+      IMPORT_AI_API_KEY: ${IMPORT_AI_API_KEY:-}
+      IMPORT_AI_API_KEY_2: ${IMPORT_AI_API_KEY_2:-}
+      IMPORT_AI_API_KEY_3: ${IMPORT_AI_API_KEY_3:-}
+      IMPORT_AI_API_KEY_4: ${IMPORT_AI_API_KEY_4:-}
+      IMPORT_AI_API_KEY_5: ${IMPORT_AI_API_KEY_5:-}
+      IMPORT_AI_MODEL: ${IMPORT_AI_MODEL:-gemini-3.5-flash}
+      IMPORT_FRAME_COUNT: ${IMPORT_FRAME_COUNT:-30}
+      IMPORT_FRAME_WIDTH: ${IMPORT_FRAME_WIDTH:-640}
+      IMPORT_IMAGES_PER_KEY: ${IMPORT_IMAGES_PER_KEY:-6}
+      DESCRIPTION_AI_API_KEY: ${DESCRIPTION_AI_API_KEY:-}
+      DESCRIPTION_AI_MODEL: ${DESCRIPTION_AI_MODEL:-gemini-3.5-flash}
+      MEDIA_DIR: /data/missav
+      MAX_VIDEO_BYTES: ${MAX_VIDEO_BYTES:-2147483648}
+      KEEP_SOURCE_VIDEO: ${KEEP_SOURCE_VIDEO:-false}
+      AUTO_IMPORT_ENABLED: ${AUTO_IMPORT_ENABLED:-false}
+      MISSAV_FEED_URL: ${MISSAV_FEED_URL:-}
+      AUTO_IMPORT_DAILY_LIMIT: ${AUTO_IMPORT_DAILY_LIMIT:-3}
+      AUTO_IMPORT_POLL_SECONDS: ${AUTO_IMPORT_POLL_SECONDS:-21600}
+      AUTO_IMPORT_BETWEEN_ITEMS_SECONDS: ${AUTO_IMPORT_BETWEEN_ITEMS_SECONDS:-300}
+      AUTO_IMPORT_MAX_ATTEMPTS: ${AUTO_IMPORT_MAX_ATTEMPTS:-3}
+      AUTO_IMPORT_TIMEZONE: ${AUTO_IMPORT_TIMEZONE:-Asia/Tokyo}
+    volumes: ["./data:/data"]
+    depends_on:
+      db: {condition: service_healthy}
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports: ["3000:3000"]
+    depends_on: [backend]
+volumes:
+  pgdata:

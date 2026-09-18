@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+frontend/node_modules/
+frontend/.next/
+backend/.pytest_cache/
+data/missav/*
+!data/missav/.gitkeep

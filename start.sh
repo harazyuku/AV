@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+project_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$project_dir"
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "Docker が見つかりません。Docker をインストールしてから再実行してください。" >&2
+  exit 1
+fi
+
+if ! docker compose version >/dev/null 2>&1; then
+  echo "Docker Compose が使えません。Docker Compose v2 を有効にしてから再実行してください。" >&2
+  exit 1
+fi
+
+if [[ ! -f .env ]]; then
+  if [[ ! -f .env.example ]]; then
+    echo ".env.example が見つかりません。" >&2
+    exit 1
+  fi
+  cp .env.example .env
+  echo ".env がなかったので .env.example から作成しました。必要ならAPIキーを設定してください。"
+fi
+
+echo "AV AI Search を起動します。停止するには Ctrl+C。"
+echo "Frontend: http://localhost:3000"
+echo "Backend:  http://localhost:8000/docs"
+
+exec docker compose up --build

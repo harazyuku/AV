@@ -1,0 +1,9 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+sqlalchemy==2.0.36
+psycopg[binary]==3.2.3
+pgvector==0.3.6
+pydantic==2.10.4
+httpx==0.28.1
+yt-dlp[default,curl-cffi]==2026.08.19
+beautifulsoup4==4.13.4
