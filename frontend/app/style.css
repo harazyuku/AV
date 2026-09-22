@@ -2707,9 +2707,9 @@ body {
   .quizConversation::before {
     position: absolute;
     inset: 0;
-    background: url('/quiz-guide.png') center / contain no-repeat;
+    background: url('/quiz-guide.png') center / 72% auto no-repeat;
     content: '';
-    opacity: 0.12;
+    opacity: 0.22;
     pointer-events: none;
   }
 
@@ -2726,6 +2726,15 @@ body {
   .quizSpeech {
     min-height: 118px;
     padding: 20px;
+    background: linear-gradient(
+      145deg,
+      rgb(32 37 46 / 78%),
+      rgb(23 27 34 / 78%)
+    );
+  }
+
+  .quizAnswers button {
+    background: rgb(28 34 42 / 72%);
   }
 
   .quizSpeech:before {
