@@ -2663,6 +2663,7 @@ body {
   .quizModal {
     width: 100%;
     max-width: calc(100vw - 16px);
+    height: min(660px, calc(100dvh - 16px));
     max-height: calc(100dvh - 16px);
     margin: auto 0;
     overflow-y: auto;
@@ -2682,6 +2683,7 @@ body {
   }
 
   .quizModalBody {
+    height: calc(100% - 62px);
     min-height: 0;
     grid-template-columns: 1fr;
     overflow: visible;
@@ -2694,7 +2696,8 @@ body {
   .quizConversation {
     position: relative;
     overflow: hidden;
-    min-height: 430px;
+    height: 100%;
+    min-height: 0;
     padding: 24px 16px 26px;
   }
 
@@ -2733,7 +2736,8 @@ body {
 
   .quizQuestion,
   .quizResult {
-    min-height: 380px;
+    min-height: 0;
+    height: 100%;
     display: flex;
     flex-direction: column;
     justify-content: center;
