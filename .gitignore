@@ -4,5 +4,8 @@ __pycache__/
 frontend/node_modules/
 frontend/.next/
 backend/.pytest_cache/
+backend/.venv/
+backend/.python-packages/
+.runtime/
 data/missav/*
 !data/missav/.gitkeep

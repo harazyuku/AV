@@ -138,6 +138,17 @@ class ImportJob(BaseModel):
 import_jobs: dict[str, dict[str, Any]] = {}
 import_jobs_lock = threading.Lock()
 app = FastAPI(title="AV AI Search API", version="0.2.0")
+
+# Production nginx forwards same-origin API requests as /api/*.  Keep the
+# application's route declarations unchanged while accepting that prefix.
+@app.middleware("http")
+async def strip_api_prefix(request, call_next):
+    if request.scope["path"] == "/api":
+        request.scope["path"] = "/"
+    elif request.scope["path"].startswith("/api/"):
+        request.scope["path"] = request.scope["path"][4:]
+    return await call_next(request)
+
 cors_origins = [
     origin.strip()
     for origin in os.getenv("CORS_ALLOW_ORIGINS", "http://localhost:3000").split(",")
