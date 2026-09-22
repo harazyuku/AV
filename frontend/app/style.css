@@ -2453,24 +2453,26 @@ body {
     gap: 12px;
     align-items: center;
     aspect-ratio: auto;
-    min-height: 82px;
-    padding: 10px 14px;
+    min-height: 64px;
+    padding: 7px 12px;
     border-radius: 14px;
     text-align: left;
   }
 
   .quizLaunchAvatar {
-    width: 46px;
-    height: 46px;
+    width: 40px;
+    height: 40px;
   }
 
   .quizLaunchAvatar img {
-    width: 74px;
+    width: 65px;
   }
 
   .quizLaunchButton > b {
+    justify-self: stretch;
     font-size: 14px;
     line-height: 1.35;
+    text-align: center;
   }
 
   .discoveryActions {
@@ -2481,14 +2483,14 @@ body {
     grid-template-columns: 36px minmax(0, 1fr) auto;
     align-items: center;
     gap: 10px;
-    min-height: 82px;
-    padding: 12px 14px;
+    min-height: 64px;
+    padding: 8px 12px;
     border-radius: 14px;
   }
 
   .discoveryAction > span:first-child {
-    width: 30px;
-    height: 30px;
+    width: 28px;
+    height: 28px;
     border-radius: 8px;
     font-size: 15px;
   }
@@ -2500,6 +2502,11 @@ body {
   .discoveryAction b {
     font-size: 12px;
     line-height: 1.35;
+  }
+
+  .discoveryAction > span:nth-child(2) {
+    justify-items: center;
+    text-align: center;
   }
 
   .discoveryAction i {
