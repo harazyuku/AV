@@ -2704,7 +2704,7 @@ body {
   .quizConversation::before {
     position: absolute;
     inset: 0;
-    background: url('/quiz-guide.png') center / 82% auto no-repeat;
+    background: url('/quiz-guide.png') center / 100% auto no-repeat;
     content: '';
     opacity: 0.3;
     pointer-events: none;
