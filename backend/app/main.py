@@ -495,7 +495,7 @@ def auto_import_status(s: Session = Depends(db)):
     active_statuses = ("processing", "downloading", "splitting", "json_building")
     ghost_count = s.scalar(select(func.count(AutoImport.id)).where(AutoImport.status.in_(active_statuses), AutoImport.updated_at < stale_before)) or 0
     recent = s.scalars(select(AutoImport).order_by(AutoImport.id.desc()).limit(10)).all()
-    return {"enabled":auto_import_enabled(s),"daily_limit":max(1,min(int(os.getenv("AUTO_IMPORT_DAILY_LIMIT", "3")),10)),"used_today":used_today,"feed_configured":bool(os.getenv("MISSAV_FEED_URL")),"ghost_count":ghost_count,"counts":counts,"recent":[{"id":x.id,"url":x.source_url,"status":x.status,"title":x.title,"product_id":x.product_id,"attempts":x.attempts,"error":x.error} for x in recent]}
+    return {"enabled":auto_import_enabled(s),"daily_limit":max(1,min(int(os.getenv("AUTO_IMPORT_DAILY_LIMIT", "3")),30)),"used_today":used_today,"feed_configured":bool(os.getenv("MISSAV_FEED_URL")),"ghost_count":ghost_count,"counts":counts,"recent":[{"id":x.id,"url":x.source_url,"status":x.status,"title":x.title,"product_id":x.product_id,"attempts":x.attempts,"error":x.error} for x in recent]}
 @app.post("/admin/auto-import/control")
 def auto_import_control(payload: AutoImportControlRequest, s: Session = Depends(db)):
     setting = s.get(AppSetting, "auto_import_enabled")

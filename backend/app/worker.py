@@ -81,7 +81,7 @@ def main():
     init_db(); recover_interrupted_items(); print("auto-import worker started", flush=True)
     while True:
         enabled = auto_import_enabled(); feed = os.getenv("MISSAV_FEED_URL", "").strip()
-        interval = max(900, int(os.getenv("AUTO_IMPORT_POLL_SECONDS", "21600"))); limit = max(1, min(int(os.getenv("AUTO_IMPORT_DAILY_LIMIT", "3")), 10)); max_attempts = max(1, min(int(os.getenv("AUTO_IMPORT_MAX_ATTEMPTS", "3")), 5))
+        interval = max(900, int(os.getenv("AUTO_IMPORT_POLL_SECONDS", "21600"))); limit = max(1, min(int(os.getenv("AUTO_IMPORT_DAILY_LIMIT", "3")), 30)); max_attempts = max(1, min(int(os.getenv("AUTO_IMPORT_MAX_ATTEMPTS", "3")), 5))
         manual_run = consume_run_now()
         if (not enabled or not import_ai_keys()) and not manual_run: time.sleep(5); continue
         try:
