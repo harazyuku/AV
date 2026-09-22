@@ -17,6 +17,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, rela
 from pgvector.sqlalchemy import Vector
 from app.sources.missav import discover_feed_urls, resolve_page
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://av:av@localhost:5432/av_search")
+DEFAULT_MEDIA_DIR = Path(__file__).resolve().parents[2] / "data" / "missav"
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False)
 def query_ai_key() -> str: return os.getenv("QUERY_AI_API_KEY") or os.getenv("GEMINI_API_KEY", "")
@@ -414,7 +415,7 @@ def register_analyzed_product(source: dict[str, Any], analysis: dict[str, Any], 
         product.performers = [Performer(name=f"出演者{index+1}", type=item.get("type", ""), hair_color=item.get("hair_color", ""), hair_style=item.get("hair_style", ""), glasses=bool(item.get("glasses", False))) for index, item in enumerate(visual_analysis.get("performers", []))]
         session.commit(); session.refresh(product); return product.id
 def run_missav_import(job_id: str, url: str, should_analyze: bool, on_progress=None):
-    media_dir = Path(os.getenv("MEDIA_DIR", "/data/missav")); media_dir.mkdir(parents=True, exist_ok=True)
+    media_dir = Path(os.getenv("MEDIA_DIR", str(DEFAULT_MEDIA_DIR))); media_dir.mkdir(parents=True, exist_ok=True)
     job_dir = media_dir / job_id; job_dir.mkdir(parents=True, exist_ok=True)
     max_bytes = int(os.getenv("MAX_VIDEO_BYTES", "2147483648"))
     keep_video = os.getenv("KEEP_SOURCE_VIDEO", "false").lower() == "true"
@@ -516,7 +517,7 @@ def delete_pending_auto_imports(s: Session = Depends(db)):
     if target_ids:
         s.execute(delete(AutoImport).where(AutoImport.id.in_(target_ids)))
     s.commit()
-    media_dir = Path(os.getenv("MEDIA_DIR", "/data/missav"))
+    media_dir = Path(os.getenv("MEDIA_DIR", str(DEFAULT_MEDIA_DIR)))
     for import_id in ghost_ids:
         for job_dir in media_dir.glob(f"auto-{import_id}-*"):
             shutil.rmtree(job_dir, ignore_errors=True)

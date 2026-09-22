@@ -7,6 +7,7 @@ from pathlib import Path
 
 from app.main import (
     AutoImport,
+    DEFAULT_MEDIA_DIR,
     SessionLocal,
     analyze_video_api,
     extract_video_frames,
@@ -16,7 +17,7 @@ from app.main import (
 
 
 def main(import_id: int) -> None:
-    media_dir = Path(os.getenv("MEDIA_DIR", "/data/missav"))
+    media_dir = Path(os.getenv("MEDIA_DIR", str(DEFAULT_MEDIA_DIR)))
     job_dirs = sorted(media_dir.glob(f"auto-{import_id}-*"), key=lambda path: path.stat().st_mtime, reverse=True)
     if not job_dirs:
         raise RuntimeError(f"import {import_id} の作業ディレクトリがありません")

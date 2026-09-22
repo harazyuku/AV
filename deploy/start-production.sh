@@ -11,7 +11,7 @@ pgvector_root="$runtime_dir/packages/pgvector-root"
 extension_dir="$pgvector_root/usr/share/postgresql/18"
 library_dir="$pgvector_root/usr/lib/postgresql/18/lib"
 
-mkdir -p "$runtime_dir/logs" "$runtime_dir/pids" "$pg_socket"
+mkdir -p "$runtime_dir/logs" "$runtime_dir/pids" "$pg_socket" "$project_dir/data/missav"
 chmod 700 "$runtime_dir" "$pg_socket"
 
 if [[ ! -s "$pg_data/PG_VERSION" ]]; then
@@ -32,6 +32,7 @@ fi
 
 export DATABASE_URL="postgresql+psycopg://$USER@/av_search?host=$pg_socket&port=5433"
 export CORS_ALLOW_ORIGINS="https://av-search.tailc7d85e.ts.net,http://127.0.0.1:3100"
+export MEDIA_DIR="${MEDIA_DIR:-$project_dir/data/missav}"
 export AUTO_IMPORT_ENABLED="${AUTO_IMPORT_ENABLED:-false}"
 
 if [[ -f "$project_dir/.env" ]]; then
