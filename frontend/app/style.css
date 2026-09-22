@@ -2414,7 +2414,7 @@ body {
 
   .search {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
     padding: 8px;
     border-radius: 16px;
@@ -2432,7 +2432,8 @@ body {
   }
 
   .search > .searchSubmit {
-    width: 100%;
+    width: auto;
+    min-width: 86px;
     min-height: 46px;
     border-radius: 11px;
     font-size: 13px;
