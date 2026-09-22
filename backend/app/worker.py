@@ -43,12 +43,16 @@ def next_item(max_attempts: int, is_manual: bool | None = False, promote_to_manu
         item = session.scalar(select(AutoImport).where(*conditions).order_by(AutoImport.discovered_at.asc()).with_for_update(skip_locked=True))
         if not item: return None
         if promote_to_manual: item.is_manual = True
-        item.status = "processing"; item.attempts += 1; item.error = None; session.commit(); session.refresh(item); session.expunge(item); return item
+        item.status = "processing"; item.attempts += 1; item.error = None; item.updated_at = datetime.now(timezone.utc).replace(tzinfo=None); session.commit(); session.refresh(item); session.expunge(item); return item
 
 def recover_interrupted_items():
     with SessionLocal() as session:
         now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
-        session.execute(update(AutoImport).where(AutoImport.status == "processing").values(status="failed", error="worker stopped during processing", processed_at=now_utc))
+        session.execute(
+            update(AutoImport)
+            .where(AutoImport.status.in_(("processing", "downloading", "splitting", "json_building")))
+            .values(status="failed", error="worker stopped during processing", updated_at=now_utc, processed_at=now_utc)
+        )
         session.commit()
 
 def process_item(item: AutoImport):
@@ -57,7 +61,9 @@ def process_item(item: AutoImport):
     def save_progress(**values):
         with SessionLocal() as session:
             row = session.get(AutoImport, item.id)
+            if not row: return
             row.status = values.get("status", row.status)
+            row.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
             if values.get("title"): row.title = values["title"]
             if values.get("product_id"): row.product_id = values["product_id"]
             if values.get("error"): row.error = values["error"]
@@ -66,7 +72,10 @@ def process_item(item: AutoImport):
     run_missav_import(job_id, item.source_url, True, save_progress)
     with import_jobs_lock: result = dict(import_jobs.pop(job_id))
     with SessionLocal() as session:
-        row = session.get(AutoImport, item.id); row.status = result["status"]; row.title = result.get("title"); row.product_id = result.get("product_id"); row.error = result.get("error"); row.processed_at = datetime.now(timezone.utc).replace(tzinfo=None); session.commit()
+        row = session.get(AutoImport, item.id)
+        if not row: return
+        now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        row.status = result["status"]; row.title = result.get("title"); row.product_id = result.get("product_id"); row.error = result.get("error"); row.updated_at = now_utc; row.processed_at = now_utc; session.commit()
 
 def main():
     init_db(); recover_interrupted_items(); print("auto-import worker started", flush=True)

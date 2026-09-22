@@ -1,14 +1,256 @@
 'use client'
-import {useState} from 'react'
+import { useEffect, useState } from 'react'
 
-const API=process.env.NEXT_PUBLIC_API_URL||'http://localhost:8000'
-type Performer={name:string;type:string;hair_color:string;hair_style:string;glasses:boolean}
-type Product={id:number;title:string;description:string;release_date:string;fanza_url:string;performers:Performer[];attributes:Record<string,any>}
+import PublicVideoCard from './components/PublicVideoCard'
+import QuizFinder from './components/QuizFinder'
 
-export default function Home(){
- const [query,setQuery]=useState('');const [items,setItems]=useState<Product[]>([]);const [filters,setFilters]=useState<any>();const [loading,setLoading]=useState(false);const [message,setMessage]=useState('');const [importUrl,setImportUrl]=useState('');const [importing,setImporting]=useState(false)
- async function search(){setLoading(true);setMessage('');try{const r=await fetch(API+'/search',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({query})});const d=await r.json();setItems(d.results||[]);setFilters(d.filters)}catch{setMessage('APIに接続できません。バックエンドが起動しているか確認してね。')}finally{setLoading(false)}}
- async function seed(){await fetch(API+'/products/seed',{method:'POST'});setMessage('サンプル作品を登録したよ。検索してみて。')}
- async function importVideo(){if(!importUrl)return;setImporting(true);setMessage('取得を開始しているよ…');try{const r=await fetch(API+'/imports/missav',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:importUrl,analyze:true})});const job=await r.json();if(!r.ok)throw new Error(job.detail||'開始できませんでした');setMessage(`取得中：ジョブ ${job.id}`);const timer=setInterval(async()=>{const s=await fetch(API+'/imports/'+job.id).then(x=>x.json());if(s.status==='splitting'){setMessage('動画から代表シーンを抽出中…')}else if(s.status==='json_building'){setMessage('AIが検索用JSONを生成中…')}else if(s.status==='completed'){clearInterval(timer);setImporting(false);setMessage(`解析・DB登録完了：${s.title}（作品ID ${s.product_id}）`)}else if(s.status==='failed'){clearInterval(timer);setImporting(false);setMessage(`処理失敗：${s.error}`)}},2000)}catch(e){setImporting(false);setMessage(e instanceof Error?e.message:'取得に失敗しました')}}
- return <main><header><div className="headerActions"><a className="statusLink" href="/imports"><span>●</span> 取込状況を見る <b>→</b></a><a className="statusLink libraryLink" href="/videos"><span>◆</span> 読み込んだ動画 <b>→</b></a></div><div className="heroCopy"><div className="eyebrow">AI WORKS SEARCH</div><h1>作品を、<em>自然な言葉</em>で探す。</h1><p>条件を組み合わせて、あなたに合う作品を見つけよう。</p><div className="search"><input value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>e.key==='Enter'&&search()} placeholder="例：黒髪でメガネ、ホテルが舞台の1人作品"/><button onClick={search}>{loading?'検索中…':'検索する'}</button></div><div className="quick"><span>試してみる：</span>{['黒髪 ロング','制服 学校','清楚系 スーツ'].map(x=><button key={x} onClick={()=>setQuery(x)}>{x}</button>)}</div></div></header><section className="content"><div className="importer"><div><b>取得・AI解析・DB登録</b><small>公開作品URLを1件ずつ指定</small></div><input value={importUrl} onChange={e=>setImportUrl(e.target.value)} placeholder="https://missav..."/><button disabled={importing} onClick={importVideo}>{importing?'処理中…':'取り込む'}</button></div>{message&&<div className="notice">{message}</div>}{filters&&<div className="found">検索条件 <code>{JSON.stringify(filters)}</code><span>{items.length} 件</span></div>}<div className="grid">{items.map(p=><article className="resultCard" key={p.id}><div className="cover">{p.attributes?.場所?.[0]||'作品'}<small>{p.release_date?.slice(0,4)||'—'}</small></div><div className="cardbody"><h2>{p.title}</h2><p>{p.description}</p><div className="tags">{p.performers?.map(x=><span key={x.name}>{x.name}</span>)}{p.attributes?.衣装?.map((x:string)=><span key={x}>{x}</span>)}</div><a href={API+'/go/'+p.id} target="_blank">掲載元で詳細を見る →</a></div></article>)}</div>{!items.length&&!filters&&<div className="empty"><div>✦</div><h2>まずは作品データを登録しよう</h2><p>開発用のサンプル作品を登録して、検索の動きを確認できます。</p><button onClick={seed}>サンプルを登録</button></div>}</section></main>
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+type VideoProduct = {
+  id: number
+  external_id: string
+  source: {
+    title: string
+    description: string
+    source_id: string | null
+  }
+  visual_analysis: {
+    keywords: string[]
+  }
+  media: {
+    thumbnail_url: string | null
+    thumbnail_small_url: string | null
+    provider: string
+  }
+}
+type SearchSuggestion = {
+  type: string
+  value: string
+  count: number
+}
+
+export default function Home() {
+  const [query, setQuery] = useState('')
+  const [selectedTags, setSelectedTags] = useState<SearchSuggestion[]>([])
+  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([])
+  const [items, setItems] = useState<VideoProduct[]>([])
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
+  const [popular, setPopular] = useState<VideoProduct[]>([])
+  const [recommended, setRecommended] = useState<VideoProduct[]>([])
+  useEffect(() => {
+    fetch(API + '/products/popular?limit=12', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : { items: [] }))
+      .then((data) => setPopular(data.items || []))
+      .catch(() => setPopular([]))
+    fetch(API + '/products/recommended?limit=12', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : { items: [] }))
+      .then((data) => setRecommended(data.items || []))
+      .catch(() => setRecommended([]))
+  }, [])
+  useEffect(() => {
+    const value = query.trim()
+    if (!value) {
+      setSuggestions([])
+      return
+    }
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      fetch(
+        `${API}/search/suggestions?q=${encodeURIComponent(value)}&limit=12`,
+        {
+          cache: 'no-store',
+          signal: controller.signal,
+        },
+      )
+        .then((response) => (response.ok ? response.json() : { items: [] }))
+        .then((data) => setSuggestions(data.items || []))
+        .catch((reason) => {
+          if (reason instanceof Error && reason.name !== 'AbortError') {
+            setSuggestions([])
+          }
+        })
+    }, 120)
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [query])
+
+  function selectSuggestion(suggestion: SearchSuggestion) {
+    setSelectedTags((current) =>
+      current.some((tag) => tag.value === suggestion.value)
+        ? current
+        : [...current, suggestion],
+    )
+    setQuery('')
+    setSuggestions([])
+  }
+
+  function removeTag(value: string) {
+    setSelectedTags((current) => current.filter((tag) => tag.value !== value))
+  }
+
+  async function search() {
+    setLoading(true)
+    setMessage('')
+    try {
+      const r = await fetch(API + '/search', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          query: query.trim(),
+          selected_tags: selectedTags.map((tag) => ({
+            type: tag.type,
+            value: tag.value,
+          })),
+        }),
+      })
+      const d = await r.json()
+      setItems(d.results || [])
+    } catch {
+      setMessage(
+        'APIに接続できません。バックエンドが起動しているか確認してね。',
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+  return (
+    <main>
+      <header className="homeHero">
+        <div className="heroCopy">
+          <h1>
+            <em>このAV</em>なんだっけ？
+          </h1>
+          <div className="search">
+            <div className="searchComposer">
+              {selectedTags.map((tag) => (
+                <span className="searchToken" key={tag.value}>
+                  {tag.type !== 'FANZAジャンル' && <small>{tag.type}</small>}
+                  {tag.value}
+                  <button
+                    type="button"
+                    aria-label={`${tag.value}を削除`}
+                    onClick={() => removeTag(tag.value)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void search()
+                  if (e.key === 'Escape') setSuggestions([])
+                }}
+                placeholder={
+                  selectedTags.length > 0
+                    ? '条件を追加…'
+                    : 'ジャンル・タグ・女優名・品番など'
+                }
+                aria-label="作品の検索条件"
+                autoComplete="off"
+              />
+            </div>
+            <button className="searchSubmit" onClick={search}>
+              {loading ? '検索中…' : '検索する'}
+            </button>
+            {suggestions.length > 0 && (
+              <div className="searchSuggestions" role="listbox">
+                {suggestions.map((suggestion) => (
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected="false"
+                    className={
+                      suggestion.type === 'FANZAジャンル'
+                        ? 'genreSuggestion'
+                        : undefined
+                    }
+                    key={`${suggestion.type}-${suggestion.value}`}
+                    onClick={() => selectSuggestion(suggestion)}
+                  >
+                    {suggestion.type !== 'FANZAジャンル' && (
+                      <small>{suggestion.type}</small>
+                    )}
+                    <span>{suggestion.value}</span>
+                    <b>{suggestion.count}</b>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+      <QuizFinder />
+      {message && <div className="notice searchNotice">{message}</div>}
+      {items.length > 0 && (
+        <section className="recommendations searchResults">
+          <div className="recommendationHeading">
+            <div>
+              <small>SEARCH RESULT</small>
+              <h2>検索した作品</h2>
+            </div>
+            <span className="resultCount">{items.length}件</span>
+          </div>
+          <div className="recommendationGrid twoRowVideoGrid">
+            {items.slice(0, 12).map((item) => (
+              <PublicVideoCard
+                id={item.id}
+                key={item.id}
+                title={item.source.title}
+                thumbnailUrl={
+                  item.media?.thumbnail_small_url || item.media?.thumbnail_url
+                }
+              />
+            ))}
+          </div>
+        </section>
+      )}
+      {popular.length > 0 && (
+        <section className="recommendations popularVideos">
+          <div className="recommendationHeading">
+            <div>
+              <small>POPULAR</small>
+              <h2>よく検索される動画</h2>
+            </div>
+          </div>
+          <div className="recommendationGrid twoRowVideoGrid">
+            {popular.map((item) => (
+              <PublicVideoCard
+                id={item.id}
+                key={item.id}
+                title={item.source.title}
+                thumbnailUrl={
+                  item.media?.thumbnail_small_url || item.media?.thumbnail_url
+                }
+              />
+            ))}
+          </div>
+        </section>
+      )}
+      {recommended.length > 0 && (
+        <section className="recommendations">
+          <div className="recommendationHeading">
+            <div>
+              <h2>おすすめ動画</h2>
+            </div>
+          </div>
+          <div className="recommendationGrid twoRowVideoGrid">
+            {recommended.map((item) => (
+              <PublicVideoCard
+                id={item.id}
+                key={item.id}
+                title={item.source.title}
+                thumbnailUrl={
+                  item.media?.thumbnail_small_url || item.media?.thumbnail_url
+                }
+              />
+            ))}
+          </div>
+        </section>
+      )}
+    </main>
+  )
 }

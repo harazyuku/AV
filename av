@@ -8,7 +8,7 @@ cd "$project_dir"
 usage() {
   cat <<'EOF'
 使い方:
-  ./av run    AV AI Searchを起動
+  ./av run    AV AI Searchを開発モードで起動
 EOF
 }
 
@@ -36,11 +36,15 @@ run() {
     echo ".env がなかったので .env.example から作成しました。必要ならAPIキーを設定してください。"
   fi
 
-  echo "AV AI Search を起動します。停止するには Ctrl+C。"
+  echo "AV AI Search を開発モードで起動します。停止するには Ctrl+C。"
+  echo "Frontend のコード変更は自動で反映されます。"
   echo "Frontend: http://localhost:3000"
   echo "Backend:  http://localhost:8000/docs"
 
-  exec docker compose up --build
+  exec docker compose \
+    -f docker-compose.yml \
+    -f docker-compose.dev.yml \
+    up --build --renew-anon-volumes
 }
 
 case "${1:-}" in

@@ -5,15 +5,24 @@
 ## 起動
 
 ```bash
-cp .env.example .env
-docker compose up --build
+./av run
 ```
 
 Frontend: http://localhost:3000 / Backend: http://localhost:8000/docs
 
-`POST /products/seed` でサンプル作品を登録できます。AI処理はすべてGemini APIを利用します。検索条件化だけはAPI障害時に簡易パーサーへフォールバックします。
+`av run` はフロントエンドをNext.jsの開発モードで起動します。`frontend`
+配下のページ・コンポーネント・CSSを変更すると、コンテナを作り直さなくても
+自動でブラウザに反映されます。
 
-AI設定は3系統に分けています。`QUERY_AI_API_KEY` はユーザーの希望を検索条件JSONへ変換し、Embeddingを作る検索AI用です。`IMPORT_AI_API_KEY` は取得した動画フレームを作品JSONへ変換する取込AI用です。`DESCRIPTION_AI_API_KEY` は正式タイトルと先に生成したJSONから短い説明文 `summary` を作る説明AI用です。必要なら同じGemini APIキーを複数用途へ設定しても構いません。
+`POST /admin/products/seed` でサンプル作品を登録できます。検索条件化、動画フレーム解析、5件の画像解析報告の統合にGemini APIを利用します。タイトルやMissAVの概要はGeminiへ送らず、取得値を `source` にそのまま保存します。画像由来の統合結果は `visual_analysis` へ保存し、統合API障害時はローカル統合へフォールバックします。
+
+## SSH接続
+
+```bash
+ssh harazyuku@10.2.22.20
+```
+
+AI設定は3系統に分けています。`QUERY_AI_API_KEY` はユーザーの希望を検索条件JSONへ変換し、Embeddingを作る検索AI用です。`IMPORT_AI_API_KEY`〜`IMPORT_AI_API_KEY_5` は30枚の動画フレームを6枚ずつ解析するGemini用です。`DESCRIPTION_AI_API_KEY` は5件の画像解析報告だけを `visual_analysis` へ統合するGemini用で、未設定時は最初の取込キーを使います。
 
 取込JSONには `schema_version` を保存します。この値は検索用JSONのトップレベル項目数（`schema_version` 自身を除く）で、現在は11です。項目を追加・削除するとコード上のフィールド定義から自動的に更新されます。`source_title` には取得元ページの正式タイトル、`source_metadata` にはHTMLから取得した概要・配信日・品番・ジャンル・メーカー・監督・レーベル、`title` にはAIが作った検索向けタイトル、`summary` には正式タイトルと先行JSONから説明AIが作った短い説明を保存します。動画解析AIと説明AIは `source_metadata` を一次情報として優先します。
 
@@ -24,11 +33,11 @@ AI設定は3系統に分けています。`QUERY_AI_API_KEY` はユーザーの�
 既定の `KEEP_SOURCE_VIDEO=false` では解析の成否にかかわらず作業用の動画・抽出JSONを削除します。検索用JSONはPostgreSQLの `products.attributes` に残ります。手動取得で `analyze=false` を指定した場合だけ、解析前提ではないため動画を残します。
 
 ```bash
-curl -X POST http://localhost:8000/imports/missav \
+curl -X POST http://localhost:8000/admin/imports/missav \
   -H 'content-type: application/json' \
   -d '{"url":"https://missav.example/作品URL","analyze":true}'
 
-curl http://localhost:8000/imports/返されたジョブID
+curl http://localhost:8000/admin/imports/返されたジョブID
 ```
 
 `MAX_VIDEO_BYTES` で1ファイルの上限を変更できます。既定値は2GBです。
@@ -62,16 +71,22 @@ AUTO_IMPORT_DAILY_LIMIT=3
 
 ```bash
 docker compose up -d --build
-curl http://localhost:8000/auto-import/status
+curl http://localhost:8000/admin/auto-import/status
 docker compose logs -f worker
 ```
 
 一覧ページが通常HTTPアクセスを拒否する場合は、ブラウザで確認した公開作品URLを最大10件まで手動キューへ渡せます。この手動キューは日次上限の対象外です。
 
 ```bash
-curl -X POST http://localhost:8000/auto-import/enqueue \
+curl -X POST http://localhost:8000/admin/auto-import/enqueue \
   -H 'content-type: application/json' \
   -d '{"urls":["https://対象ドメイン/ja/作品ID"]}'
 ```
 
 自動取込は `AUTO_IMPORT_ENABLED=false` に戻して `docker compose up -d` を実行すれば停止できます。キューや登録済みJSONは削除されません。
+
+## 管理画面とCloudflare Access
+
+管理画面は `/admin/*`、登録・削除・ワーカー操作APIは `/admin/*` に集約しています。公開ヘッダーには管理画面へのリンクを表示しません。ローカルでは `http://localhost:3000/admin` を直接開けます。本番でCloudflare Accessを設定すると、同じURLの手前にCloudflareのログイン画面が表示されます。
+
+設定項目と本番公開時の確認手順は [`docs/cloudflare-access.md`](docs/cloudflare-access.md) を参照してください。

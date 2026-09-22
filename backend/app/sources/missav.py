@@ -88,6 +88,7 @@ def _page_metadata(soup: BeautifulSoup) -> dict:
         "maker": "",
         "director": "",
         "label": "",
+        "actresses": [],
     }
     labels = {
         "配信開始日": "release_date",
@@ -96,6 +97,8 @@ def _page_metadata(soup: BeautifulSoup) -> dict:
         "メーカー": "maker",
         "監督": "director",
         "レーベル": "label",
+        "出演者": "actresses",
+        "女優": "actresses",
     }
     for row in soup.select("div.text-secondary"):
         label_tag = row.find("span")
@@ -105,7 +108,7 @@ def _page_metadata(soup: BeautifulSoup) -> dict:
         field = labels.get(label)
         if not field:
             continue
-        if field == "genres":
+        if field in {"genres", "actresses"}:
             metadata[field] = list(dict.fromkeys(a.get_text(" ", strip=True) for a in row.select("a[href]") if a.get_text(" ", strip=True)))
         elif field == "release_date":
             time_tag = row.find("time")
