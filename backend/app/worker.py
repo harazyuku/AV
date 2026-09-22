@@ -22,7 +22,11 @@ def today_start_utc() -> datetime:
 
 def processed_today() -> int:
     with SessionLocal() as session:
-        return session.scalar(select(func.count(AutoImport.id)).where(AutoImport.processed_at >= today_start_utc(), AutoImport.is_manual.is_(False))) or 0
+        return session.scalar(select(func.count(AutoImport.id)).where(
+            AutoImport.status == "completed",
+            AutoImport.processed_at >= today_start_utc(),
+            AutoImport.is_manual.is_(False),
+        )) or 0
 
 def run_now_requested() -> bool:
     with SessionLocal() as session:
@@ -48,7 +52,7 @@ def wait_for_even_hour_slot() -> None:
 
 def next_item(max_attempts: int, is_manual: bool | None = False, promote_to_manual: bool = False) -> AutoImport | None:
     with SessionLocal() as session:
-        retryable = (AutoImport.status == "failed") if is_manual is None or is_manual else ((AutoImport.status == "failed") & (AutoImport.processed_at < today_start_utc()))
+        retryable = AutoImport.status == "failed"
         conditions = [AutoImport.attempts < max_attempts, or_(AutoImport.status == "pending", retryable)]
         if is_manual is not None: conditions.append(AutoImport.is_manual.is_(is_manual))
         item = session.scalar(select(AutoImport).where(*conditions).order_by(AutoImport.discovered_at.asc()).with_for_update(skip_locked=True))

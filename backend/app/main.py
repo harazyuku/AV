@@ -490,7 +490,7 @@ def auto_import_status(s: Session = Depends(db)):
     zone = ZoneInfo(os.getenv("AUTO_IMPORT_TIMEZONE", "Asia/Tokyo"))
     start = datetime.now(zone).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc).replace(tzinfo=None)
     counts = dict(s.execute(select(AutoImport.status, func.count(AutoImport.id)).group_by(AutoImport.status)).all())
-    used_today = s.scalar(select(func.count(AutoImport.id)).where(AutoImport.processed_at >= start, AutoImport.is_manual.is_(False))) or 0
+    used_today = s.scalar(select(func.count(AutoImport.id)).where(AutoImport.status == "completed", AutoImport.processed_at >= start, AutoImport.is_manual.is_(False))) or 0
     stale_before = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=30)
     active_statuses = ("processing", "downloading", "splitting", "json_building")
     ghost_count = s.scalar(select(func.count(AutoImport.id)).where(AutoImport.status.in_(active_statuses), AutoImport.updated_at < stale_before)) or 0
