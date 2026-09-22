@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import PublicVideoCard from './components/PublicVideoCard'
 import QuizFinder from './components/QuizFinder'
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API = process.env.NEXT_PUBLIC_API_URL || '/api'
 type VideoProduct = {
   id: number
   external_id: string
@@ -197,7 +197,7 @@ export default function Home() {
           <div className="recommendationGrid twoRowVideoGrid">
             {items.slice(0, 12).map((item) => (
               <PublicVideoCard
-                id={item.id}
+                externalId={item.external_id}
                 key={item.id}
                 title={item.source.title}
                 thumbnailUrl={
@@ -219,7 +219,7 @@ export default function Home() {
           <div className="recommendationGrid twoRowVideoGrid">
             {popular.map((item) => (
               <PublicVideoCard
-                id={item.id}
+                externalId={item.external_id}
                 key={item.id}
                 title={item.source.title}
                 thumbnailUrl={
@@ -240,7 +240,7 @@ export default function Home() {
           <div className="recommendationGrid twoRowVideoGrid">
             {recommended.map((item) => (
               <PublicVideoCard
-                id={item.id}
+                externalId={item.external_id}
                 key={item.id}
                 title={item.source.title}
                 thumbnailUrl={

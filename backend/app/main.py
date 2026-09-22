@@ -11,7 +11,7 @@ from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, create_engine, delete, func, select
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, create_engine, delete, func, or_, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship, sessionmaker
 from pgvector.sqlalchemy import Vector
@@ -846,12 +846,31 @@ def product_json_detail(product_id: int, s: Session = Depends(db)):
     product = s.get(Product, product_id)
     if not product: raise HTTPException(404, "product not found")
     return product_json(product)
+@app.get("/products/by-external/{external_id}/json")
+def product_json_external_detail(external_id: str, s: Session = Depends(db)):
+    product = s.scalar(select(Product).where(or_(
+        Product.external_id == external_id,
+        Product.external_id == f"missav-{external_id}",
+        Product.attributes["source_id"].astext == external_id,
+    )))
+    if not product: raise HTTPException(404, "product not found")
+    return product_json(product)
 @app.post("/products/{product_id}/view", status_code=201)
 def record_product_view(product_id: int, s: Session = Depends(db)):
     if not s.get(Product, product_id):
         raise HTTPException(404, "product not found")
     s.add(ClickLog(product_id=product_id))
     s.commit()
+    return {"recorded": True}
+@app.post("/products/by-external/{external_id}/view", status_code=201)
+def record_external_product_view(external_id: str, s: Session = Depends(db)):
+    product = s.scalar(select(Product).where(or_(
+        Product.external_id == external_id,
+        Product.external_id == f"missav-{external_id}",
+        Product.attributes["source_id"].astext == external_id,
+    )))
+    if not product: raise HTTPException(404, "product not found")
+    s.add(ClickLog(product_id=product.id)); s.commit()
     return {"recorded": True}
 @app.post("/admin/products", response_model=ProductOut)
 async def create_product(payload: ProductIn, s: Session = Depends(db)):

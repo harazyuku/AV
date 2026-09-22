@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import RandomGenerator from './RandomGenerator'
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API = process.env.NEXT_PUBLIC_API_URL || '/api'
 const MIN_QUESTIONS = 5
 const MAX_QUESTIONS = 30
 const ANSWER_TRANSITION_MS = 450

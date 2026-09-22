@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react'
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API = process.env.NEXT_PUBLIC_API_URL || '/api'
 
 type ImportedProduct = {
   id: number
+  external_id: string
   title?: string
   description?: string
   attributes?: Record<string, unknown>
@@ -211,7 +212,7 @@ export default function RandomGenerator() {
       const finalists = scored.filter(({ score }) => score === highestScore)
       const selected = finalists[Math.floor(Math.random() * finalists.length)]
 
-      window.location.assign(`/videos/${selected.product.id}`)
+      window.location.assign(`/videos/${encodeURIComponent(selected.product.external_id.replace(/^missav-/, ''))}`)
     } catch (caughtError) {
       setError(
         caughtError instanceof Error

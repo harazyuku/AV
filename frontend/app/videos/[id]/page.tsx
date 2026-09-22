@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API = process.env.NEXT_PUBLIC_API_URL || '/api'
 
 type VideoDetail = {
   id: number
@@ -37,7 +37,7 @@ export default function VideoDetailPage({
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetch(`${API}/products/${params.id}/json`, { cache: 'no-store' })
+    fetch(`${API}/products/by-external/${encodeURIComponent(params.id)}/json`, { cache: 'no-store' })
       .then(async (response) => {
         if (!response.ok) throw new Error('動画情報を取得できませんでした')
         return response.json()
@@ -47,7 +47,7 @@ export default function VideoDetailPage({
         const viewKey = `viewed-video-${params.id}`
         if (!sessionStorage.getItem(viewKey)) {
           sessionStorage.setItem(viewKey, 'true')
-          void fetch(`${API}/products/${params.id}/view`, { method: 'POST' })
+          void fetch(`${API}/products/by-external/${encodeURIComponent(params.id)}/view`, { method: 'POST' })
         }
       })
       .catch((reason) =>

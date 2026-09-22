@@ -3,18 +3,18 @@
 import Link from 'next/link'
 
 type PublicVideoCardProps = {
-  id: number
+  externalId: string
   title: string
   thumbnailUrl?: string | null
 }
 
 export default function PublicVideoCard({
-  id,
+  externalId,
   title,
   thumbnailUrl,
 }: PublicVideoCardProps) {
   return (
-    <Link className="publicVideoCard" href={`/videos/${id}`}>
+    <Link className="publicVideoCard" href={`/videos/${encodeURIComponent(externalId.replace(/^missav-/, ''))}`}>
       <div className="publicVideoThumbnail">
         {thumbnailUrl ? (
           <img
