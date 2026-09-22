@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 import httpx
 import yt_dlp
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, create_engine, delete, func, or_, select
@@ -694,6 +694,22 @@ def fanza_image_url(attributes: dict[str, Any], size: str = "pl") -> str | None:
     if not content_id:
         return None
     return f"https://pics.dmm.co.jp/digital/video/{content_id}/{content_id}{size}.jpg"
+@app.get("/media/thumbnail/{external_id}")
+def proxy_thumbnail(external_id: str, s: Session = Depends(db)):
+    product = s.scalar(select(Product).where(or_(
+        Product.external_id == external_id,
+        Product.external_id == f"missav-{external_id}",
+        Product.attributes["source_id"].astext == external_id,
+    )))
+    if not product: raise HTTPException(404, "product not found")
+    image_url = fanza_image_url(product.attributes or {})
+    if not image_url: raise HTTPException(404, "thumbnail not found")
+    try:
+        image = httpx.get(image_url, timeout=15, follow_redirects=True)
+        image.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, "thumbnail provider unavailable") from exc
+    return Response(content=image.content, media_type=image.headers.get("content-type", "image/jpeg"), headers={"Cache-Control": "public, max-age=86400"})
 def product_json(p: Product) -> dict[str, Any]:
     attributes = p.attributes or {}
     stored_visual = attributes.get("visual_analysis")
@@ -745,8 +761,8 @@ def product_json(p: Product) -> dict[str, Any]:
         "visual_analysis": visual_analysis,
         "media": {
             "fanza_content_id": fanza_content_id(attributes),
-            "thumbnail_url": fanza_image_url(attributes),
-            "thumbnail_small_url": fanza_image_url(attributes, "ps"),
+            "thumbnail_url": f"/api/media/thumbnail/{attributes.get('source_id')}" if fanza_image_url(attributes) and attributes.get("source_id") else None,
+            "thumbnail_small_url": f"/api/media/thumbnail/{attributes.get('source_id')}?size=small" if fanza_image_url(attributes) and attributes.get("source_id") else None,
             "provider": "FANZA",
         },
         "created_at": p.created_at.isoformat() if p.created_at else None,
