@@ -2442,21 +2442,21 @@ body {
   .quizLaunch {
     width: calc(100% - 32px);
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: 1fr;
     gap: 8px;
     padding: 20px 0 28px;
   }
 
   .quizLaunchButton {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 7px;
+    grid-template-columns: 46px minmax(0, 1fr);
+    gap: 12px;
     align-items: center;
     aspect-ratio: auto;
-    min-height: 112px;
-    padding: 12px 7px;
+    min-height: 82px;
+    padding: 10px 14px;
     border-radius: 14px;
-    text-align: center;
+    text-align: left;
   }
 
   .quizLaunchAvatar {
@@ -2469,7 +2469,7 @@ body {
   }
 
   .quizLaunchButton > b {
-    font-size: 11px;
+    font-size: 14px;
     line-height: 1.35;
   }
 
@@ -2478,11 +2478,11 @@ body {
   }
 
   .discoveryAction {
-    grid-template-columns: 1fr;
-    justify-items: start;
-    gap: 8px;
-    min-height: 112px;
-    padding: 12px 9px;
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    min-height: 82px;
+    padding: 12px 14px;
     border-radius: 14px;
   }
 
@@ -2498,7 +2498,7 @@ body {
   }
 
   .discoveryAction b {
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.35;
   }
 
