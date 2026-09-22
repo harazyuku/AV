@@ -2448,24 +2448,23 @@ body {
   }
 
   .quizLaunchButton {
+    position: relative;
     display: grid;
-    grid-template-columns: 46px minmax(0, 1fr);
-    gap: 12px;
+    grid-template-columns: 1fr;
+    gap: 0;
     align-items: center;
     aspect-ratio: auto;
     min-height: 64px;
     padding: 7px 12px;
     border-radius: 14px;
+    background:
+      linear-gradient(90deg, rgb(8 11 15 / 78%), rgb(8 11 15 / 52%)),
+      url('/quiz-guide.png') center 38% / cover no-repeat;
     text-align: left;
   }
 
   .quizLaunchAvatar {
-    width: 40px;
-    height: 40px;
-  }
-
-  .quizLaunchAvatar img {
-    width: 65px;
+    display: none;
   }
 
   .quizLaunchButton > b {
@@ -2473,6 +2472,7 @@ body {
     font-size: 14px;
     line-height: 1.35;
     text-align: center;
+    text-shadow: 0 1px 5px #000;
   }
 
   .discoveryActions {
