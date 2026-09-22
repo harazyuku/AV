@@ -2694,6 +2694,7 @@ body {
   .quizConversation {
     position: relative;
     overflow: hidden;
+    min-height: 430px;
     padding: 24px 16px 26px;
   }
 
@@ -2724,6 +2725,18 @@ body {
       rgb(32 37 46 / 78%),
       rgb(23 27 34 / 78%)
     );
+  }
+
+  .quizLoading {
+    min-height: 360px;
+  }
+
+  .quizQuestion,
+  .quizResult {
+    min-height: 380px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 
   .quizAnswers button {
