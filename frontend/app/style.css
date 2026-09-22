@@ -2414,6 +2414,7 @@ body {
 
   .search {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
     padding: 8px;
     border-radius: 16px;
@@ -2431,6 +2432,7 @@ body {
   }
 
   .search > .searchSubmit {
+    width: 100%;
     min-height: 46px;
     border-radius: 11px;
     font-size: 13px;
@@ -2558,6 +2560,11 @@ body {
 
   .twoRowVideoGrid > :nth-child(n + 7) {
     display: none;
+  }
+
+  .publicVideoCard h3 {
+    margin-top: 7px;
+    font-size: 10px;
   }
 
   .videoDetailPage {
