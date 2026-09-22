@@ -2459,7 +2459,7 @@ body {
     border-radius: 14px;
     background:
       linear-gradient(90deg, rgb(8 11 15 / 78%), rgb(8 11 15 / 52%)),
-      url('/quiz-guide.png') center 20% / cover no-repeat;
+      url('/quiz-guide.png') center top / cover no-repeat;
     text-align: left;
   }
 
