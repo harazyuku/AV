@@ -1,5 +1,5 @@
 import os, re, time, uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urljoin, urlparse, urlunparse
 from zoneinfo import ZoneInfo
 import httpx
@@ -34,6 +34,17 @@ def consume_run_now() -> bool:
         setting = session.get(AppSetting, "auto_import_run_now")
         if not setting or setting.value != "true": return False
         setting.value = "false"; session.commit(); return True
+
+def wait_for_even_hour_slot() -> None:
+    zone = ZoneInfo(os.getenv("AUTO_IMPORT_TIMEZONE", "Asia/Tokyo"))
+    now = datetime.now(zone)
+    next_hour = ((now.hour // 2) + 1) * 2
+    target = ((now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+              if next_hour >= 24 else now.replace(hour=next_hour, minute=0, second=0, microsecond=0))
+    delay = max(0, (target - now).total_seconds())
+    if delay > 0:
+        print(f"next auto-import slot: {target.isoformat()}", flush=True)
+        time.sleep(delay)
 
 def next_item(max_attempts: int, is_manual: bool | None = False, promote_to_manual: bool = False) -> AutoImport | None:
     with SessionLocal() as session:
@@ -93,9 +104,10 @@ def main():
                 except Exception as exc: print(f"discovery error: {exc}", flush=True)
             if not manual_run:
                 while processed_today() < limit:
+                    wait_for_even_hour_slot()
                     item = next_item(max_attempts, is_manual=False)
                     if not item: break
-                    process_item(item); time.sleep(max(60, int(os.getenv("AUTO_IMPORT_BETWEEN_ITEMS_SECONDS", "300"))))
+                    process_item(item)
         except Exception as exc: print(f"worker error: {exc}", flush=True)
         for _ in range(max(1, interval // 5)):
             if run_now_requested(): break
