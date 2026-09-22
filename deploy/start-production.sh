@@ -31,7 +31,7 @@ fi
   -c "create extension if not exists vector" >/dev/null
 
 export DATABASE_URL="postgresql+psycopg://$USER@/av_search?host=$pg_socket&port=5433"
-export CORS_ALLOW_ORIGINS="https://kuchikomi.tailc7d85e.ts.net,http://127.0.0.1:3100"
+export CORS_ALLOW_ORIGINS="https://av-search.tailc7d85e.ts.net,http://127.0.0.1:3100"
 export AUTO_IMPORT_ENABLED="${AUTO_IMPORT_ENABLED:-false}"
 
 if [[ -f "$project_dir/.env" ]]; then
@@ -40,7 +40,7 @@ if [[ -f "$project_dir/.env" ]]; then
   source "$project_dir/.env"
   set +a
   export DATABASE_URL="postgresql+psycopg://$USER@/av_search?host=$pg_socket&port=5433"
-  export CORS_ALLOW_ORIGINS="https://kuchikomi.tailc7d85e.ts.net,http://127.0.0.1:3100"
+  export CORS_ALLOW_ORIGINS="https://av-search.tailc7d85e.ts.net,http://127.0.0.1:3100"
 fi
 
 start_process() {
