@@ -1,8 +1,9 @@
 'use client'
 
 import { use, useEffect, useState } from 'react'
+import { API_BASE } from '../../../shared/api'
 
-const API = process.env.NEXT_PUBLIC_API_URL || '/api'
+const API = API_BASE
 
 type VideoDetail = {
   id: number

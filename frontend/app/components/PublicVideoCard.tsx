@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { productPath } from '../../shared/api'
 
 type PublicVideoCardProps = {
   externalId: string
@@ -14,7 +15,7 @@ export default function PublicVideoCard({
   thumbnailUrl,
 }: PublicVideoCardProps) {
   return (
-    <Link className="publicVideoCard" href={`/videos/${encodeURIComponent(externalId.replace(/^missav-/, ''))}`}>
+    <Link className="publicVideoCard" href={productPath(externalId)}>
       <div className="publicVideoThumbnail">
         {thumbnailUrl ? (
           <img
