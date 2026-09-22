@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { use, useEffect, useState } from 'react'
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api'
 
@@ -31,13 +31,14 @@ type VideoDetail = {
 export default function VideoDetailPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = use(params)
   const [item, setItem] = useState<VideoDetail | null>(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetch(`${API}/products/by-external/${encodeURIComponent(params.id)}/json`, { cache: 'no-store' })
+    fetch(`${API}/products/by-external/${encodeURIComponent(id)}/json`, { cache: 'no-store' })
       .then(async (response) => {
         if (!response.ok) throw new Error('動画情報を取得できませんでした')
         return response.json()
@@ -47,7 +48,7 @@ export default function VideoDetailPage({
         const viewKey = `viewed-video-${params.id}`
         if (!sessionStorage.getItem(viewKey)) {
           sessionStorage.setItem(viewKey, 'true')
-          void fetch(`${API}/products/by-external/${encodeURIComponent(params.id)}/view`, { method: 'POST' })
+          void fetch(`${API}/products/by-external/${encodeURIComponent(id)}/view`, { method: 'POST' })
         }
       })
       .catch((reason) =>
@@ -55,7 +56,7 @@ export default function VideoDetailPage({
           reason instanceof Error ? reason.message : '取得に失敗しました',
         ),
       )
-  }, [params.id])
+  }, [id])
 
   if (error) {
     return <main className="videoDetailPage">{error}</main>
