@@ -16,10 +16,91 @@ Frontend: http://localhost:3000 / Backend: http://localhost:8000/docs
 
 `POST /admin/products/seed` でサンプル作品を登録できます。検索条件化、動画フレーム解析、5件の画像解析報告の統合にGemini APIを利用します。タイトルやMissAVの概要はGeminiへ送らず、取得値を `source` にそのまま保存します。画像由来の統合結果は `visual_analysis` へ保存し、統合API障害時はローカル統合へフォールバックします。
 
-## SSH接続
+## 本番サーバーへの接続
+
+本番はDocker Composeではなく、ユーザー単位のsystemdサービスで動作しています。
+本番反映時は、まず次のコマンドで接続します。
 
 ```bash
-ssh harazyuku@10.2.22.20
+ssh harazyuku@av-search.tailc7d85e.ts.net
+```
+
+### バックエンドだけを更新する
+
+`backend/`だけを変更した場合は、SSH接続後に次のブロックをそのまま貼り付けます。
+サーバーに未コミットの変更がある場合は、安全のため更新を中止します。
+
+```bash
+(
+set -e
+cd /home/harazyuku/AV
+
+if [ -n "$(git status --porcelain)" ]; then
+  echo "サーバーに未コミットの変更があります。内容を確認してから再実行してください。" >&2
+  git status --short
+  exit 1
+fi
+
+git pull --ff-only origin main
+backend/.venv/bin/pip install -r backend/requirements.txt
+systemctl --user restart av-backend.service
+
+systemctl --user is-active av-backend.service
+curl -fsS http://127.0.0.1:8000/health
+)
+```
+
+サムネイル取得まで確認する場合は、続けて次を実行します。
+
+```bash
+curl -fsS \
+  -o /tmp/start-638.jpg \
+  -w 'HTTP %{http_code} / %{content_type} / %{size_download} bytes\n' \
+  'http://127.0.0.1:8000/media/thumbnail/START-638?v=2'
+
+file /tmp/start-638.jpg
+```
+
+### フロントエンドを含めて全体を更新する
+
+フロントエンドとバックエンドの両方を変更した場合は、SSH接続後に次のブロックを
+そのまま貼り付けます。
+
+```bash
+(
+set -e
+cd /home/harazyuku/AV
+
+if [ -n "$(git status --porcelain)" ]; then
+  echo "サーバーに未コミットの変更があります。内容を確認してから再実行してください。" >&2
+  git status --short
+  exit 1
+fi
+
+git pull --ff-only origin main
+backend/.venv/bin/pip install -r backend/requirements.txt
+
+cd frontend
+npm ci
+npm run build
+cd ..
+
+systemctl --user restart av-backend.service
+systemctl --user restart av-frontend.service
+
+systemctl --user is-active av-backend.service av-frontend.service
+curl -fsS http://127.0.0.1:8000/health
+curl -fsS -o /dev/null -w 'Frontend HTTP %{http_code}\n' http://127.0.0.1:3100/
+)
+```
+
+`av-worker.service`は動画取込中に再起動すると処理中のジョブへ影響します。
+`backend/app/worker.py`や、workerが利用する取込処理を変更した場合だけ、取込中でないことを
+確認してから次を実行してください。
+
+```bash
+systemctl --user restart av-worker.service
+systemctl --user is-active av-worker.service
 ```
 
 AI設定は3系統に分けています。`QUERY_AI_API_KEY` はユーザーの希望を検索条件JSONへ変換し、Embeddingを作る検索AI用です。`IMPORT_AI_API_KEY`〜`IMPORT_AI_API_KEY_5` は30枚の動画フレームを6枚ずつ解析するGemini用です。`DESCRIPTION_AI_API_KEY` は5件の画像解析報告だけを `visual_analysis` へ統合するGemini用で、未設定時は最初の取込キーを使います。
@@ -42,7 +123,7 @@ curl http://localhost:8000/admin/imports/返されたジョブID
 
 `MAX_VIDEO_BYTES` で1ファイルの上限を変更できます。既定値は2GBです。
 
-Cloudflareの公開ページで403になる場合に備え、取得コンテナにはyt-dlpのブラウザ通信互換用依存（curl-cffi）を含めています。MissAVのページ自体は専用アダプターで取得し、HTMLや公開設定に含まれる直接動画URLだけをyt-dlpへ渡します。反映には再ビルドが必要です。
+Cloudflareの公開ページで403になる場合に備え、取得コンテナにはyt-dlpのブラウザ通信互換用依存（curl-cffi）を含めています。MissAVのページ自体は専用アダプターで取得し、HTMLや公開設定に含まれる直接動画URLだけをyt-dlpへ渡します。ローカルのDocker Compose環境への反映には再ビルドが必要です。本番では前述のsystemd用手順を使ってください。
 
 ```bash
 docker compose up -d --build backend worker
@@ -67,7 +148,7 @@ AUTO_IMPORT_DAILY_LIMIT=3
 
 日次上限は自動取込にだけ適用されます。トップ画面からの手動取込と、取込状況画面の「読み込みを実施する」による手動実行には適用しません。後者は一覧ページから未取得・未登録の作品をランダムに1件選び、手動キューへ追加します。
 
-設定反映と状態確認:
+ローカルのDocker Compose環境での設定反映と状態確認:
 
 ```bash
 docker compose up -d --build

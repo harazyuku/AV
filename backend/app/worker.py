@@ -39,16 +39,21 @@ def consume_run_now() -> bool:
         if not setting or setting.value != "true": return False
         setting.value = "false"; session.commit(); return True
 
-def wait_for_even_hour_slot() -> None:
+def wait_for_even_hour_slot() -> bool:
     zone = ZoneInfo(os.getenv("AUTO_IMPORT_TIMEZONE", "Asia/Tokyo"))
     now = datetime.now(zone)
     next_hour = ((now.hour // 2) + 1) * 2
     target = ((now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
               if next_hour >= 24 else now.replace(hour=next_hour, minute=0, second=0, microsecond=0))
-    delay = max(0, (target - now).total_seconds())
-    if delay > 0:
-        print(f"next auto-import slot: {target.isoformat()}", flush=True)
-        time.sleep(delay)
+    print(f"next auto-import slot: {target.isoformat()}", flush=True)
+    while True:
+        if run_now_requested():
+            print("manual import requested; leaving scheduled wait", flush=True)
+            return False
+        delay = (target - datetime.now(zone)).total_seconds()
+        if delay <= 0:
+            return True
+        time.sleep(min(5, delay))
 
 def next_item(max_attempts: int, is_manual: bool | None = False, promote_to_manual: bool = False) -> AutoImport | None:
     with SessionLocal() as session:
@@ -108,7 +113,8 @@ def main():
                 except Exception as exc: print(f"discovery error: {exc}", flush=True)
             if not manual_run:
                 while processed_today() < limit:
-                    wait_for_even_hour_slot()
+                    if not wait_for_even_hour_slot():
+                        break
                     item = next_item(max_attempts, is_manual=False)
                     if not item: break
                     process_item(item)
