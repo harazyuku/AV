@@ -145,9 +145,7 @@ export default function Home() {
                   if (e.key === 'Escape') setSuggestions([])
                 }}
                 placeholder={
-                  selectedTags.length > 0
-                    ? '条件を追加…'
-                    : 'ジャンル・タグ・女優名・品番など'
+                  selectedTags.length > 0 ? '条件を追加…' : 'ワードを入れて検索'
                 }
                 aria-label="作品の検索条件"
                 autoComplete="off"
@@ -212,7 +210,6 @@ export default function Home() {
         <section className="recommendations popularVideos">
           <div className="recommendationHeading">
             <div>
-              <small>POPULAR</small>
               <h2>よく検索される動画</h2>
             </div>
           </div>

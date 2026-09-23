@@ -695,14 +695,17 @@ def fanza_image_url(attributes: dict[str, Any], size: str = "pl") -> str | None:
         return None
     return f"https://pics.dmm.co.jp/digital/video/{content_id}/{content_id}{size}.jpg"
 @app.get("/media/thumbnail/{external_id}")
-def proxy_thumbnail(external_id: str, s: Session = Depends(db)):
+def proxy_thumbnail(external_id: str, size: str = "large", s: Session = Depends(db)):
     product = s.scalar(select(Product).where(or_(
         Product.external_id == external_id,
         Product.external_id == f"missav-{external_id}",
         Product.attributes["source_id"].astext == external_id,
     )))
     if not product: raise HTTPException(404, "product not found")
-    image_url = fanza_image_url(product.attributes or {})
+    image_url = fanza_image_url(
+        product.attributes or {},
+        "ps" if size == "small" else "pl",
+    )
     if not image_url: raise HTTPException(404, "thumbnail not found")
     try:
         image = httpx.get(image_url, timeout=15, follow_redirects=True)
@@ -857,11 +860,6 @@ def search_suggestions(q: str = "", limit: int = 12, s: Session = Depends(db)):
         ]
     }
 
-@app.get("/products/{product_id}/json")
-def product_json_detail(product_id: int, s: Session = Depends(db)):
-    product = s.get(Product, product_id)
-    if not product: raise HTTPException(404, "product not found")
-    return product_json(product)
 @app.get("/products/by-external/{external_id}/json")
 def product_json_external_detail(external_id: str, s: Session = Depends(db)):
     product = s.scalar(select(Product).where(or_(
@@ -871,13 +869,6 @@ def product_json_external_detail(external_id: str, s: Session = Depends(db)):
     )))
     if not product: raise HTTPException(404, "product not found")
     return product_json(product)
-@app.post("/products/{product_id}/view", status_code=201)
-def record_product_view(product_id: int, s: Session = Depends(db)):
-    if not s.get(Product, product_id):
-        raise HTTPException(404, "product not found")
-    s.add(ClickLog(product_id=product_id))
-    s.commit()
-    return {"recorded": True}
 @app.post("/products/by-external/{external_id}/view", status_code=201)
 def record_external_product_view(external_id: str, s: Session = Depends(db)):
     product = s.scalar(select(Product).where(or_(
@@ -887,6 +878,18 @@ def record_external_product_view(external_id: str, s: Session = Depends(db)):
     )))
     if not product: raise HTTPException(404, "product not found")
     s.add(ClickLog(product_id=product.id)); s.commit()
+    return {"recorded": True}
+@app.get("/products/{product_id}/json")
+def product_json_detail(product_id: int, s: Session = Depends(db)):
+    product = s.get(Product, product_id)
+    if not product: raise HTTPException(404, "product not found")
+    return product_json(product)
+@app.post("/products/{product_id}/view", status_code=201)
+def record_product_view(product_id: int, s: Session = Depends(db)):
+    if not s.get(Product, product_id):
+        raise HTTPException(404, "product not found")
+    s.add(ClickLog(product_id=product_id))
+    s.commit()
     return {"recorded": True}
 @app.post("/admin/products", response_model=ProductOut)
 async def create_product(payload: ProductIn, s: Session = Depends(db)):

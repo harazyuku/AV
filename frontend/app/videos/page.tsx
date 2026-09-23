@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { apiAssetUrl } from '../../shared/api'
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api'
 type ImportedProduct = {
@@ -96,8 +97,10 @@ export default function VideosPage() {
                   item.media?.thumbnail_url) && (
                   <img
                     src={
-                      item.media.thumbnail_small_url ||
-                      item.media.thumbnail_url!
+                      apiAssetUrl(
+                        item.media.thumbnail_small_url ||
+                          item.media.thumbnail_url,
+                      )!
                     }
                     alt=""
                     loading="lazy"

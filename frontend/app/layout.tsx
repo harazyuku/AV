@@ -9,8 +9,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <a className="siteBrand" href="/">
               <span>このAV</span>なんだっけ？
             </a>
-            <nav className="siteNav" aria-label="メインナビゲーション">
-            </nav>
+            <nav className="siteNav" aria-label="メインナビゲーション"></nav>
           </div>
         </header>
 

@@ -1,7 +1,7 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
-import { API_BASE } from '../../../shared/api'
+import { useEffect, useState } from 'react'
+import { API_BASE, apiAssetUrl } from '../../../shared/api'
 
 const API = API_BASE
 
@@ -32,24 +32,29 @@ type VideoDetail = {
 export default function VideoDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: { id: string }
 }) {
-  const { id } = use(params)
+  const { id } = params
   const [item, setItem] = useState<VideoDetail | null>(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetch(`${API}/products/by-external/${encodeURIComponent(id)}/json`, { cache: 'no-store' })
+    fetch(`${API}/products/by-external/${encodeURIComponent(id)}/json`, {
+      cache: 'no-store',
+    })
       .then(async (response) => {
         if (!response.ok) throw new Error('動画情報を取得できませんでした')
         return response.json()
       })
       .then((data) => {
         setItem(data)
-        const viewKey = `viewed-video-${params.id}`
+        const viewKey = `viewed-video-${id}`
         if (!sessionStorage.getItem(viewKey)) {
           sessionStorage.setItem(viewKey, 'true')
-          void fetch(`${API}/products/by-external/${encodeURIComponent(id)}/view`, { method: 'POST' })
+          void fetch(
+            `${API}/products/by-external/${encodeURIComponent(id)}/view`,
+            { method: 'POST' },
+          )
         }
       })
       .catch((reason) =>
@@ -69,14 +74,15 @@ export default function VideoDetailPage({
 
   const metadata = item.source.metadata || {}
   const tags = metadata.genres || item.visual_analysis.keywords || []
+  const imageUrl = apiAssetUrl(item.media.thumbnail_url)
 
   return (
     <main className="videoDetailPage">
       <article className="videoDetail">
         <div className="videoDetailImage">
-          {item.media.thumbnail_url ? (
+          {imageUrl ? (
             <img
-              src={item.media.thumbnail_url}
+              src={imageUrl}
               alt={`${item.source.title}の作品画像`}
               referrerPolicy="no-referrer"
             />

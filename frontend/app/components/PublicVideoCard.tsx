@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { productPath } from '../../shared/api'
+import { apiAssetUrl, productPath } from '../../shared/api'
 
 type PublicVideoCardProps = {
   externalId: string
@@ -14,12 +14,14 @@ export default function PublicVideoCard({
   title,
   thumbnailUrl,
 }: PublicVideoCardProps) {
+  const imageUrl = apiAssetUrl(thumbnailUrl)
+
   return (
     <Link className="publicVideoCard" href={productPath(externalId)}>
       <div className="publicVideoThumbnail">
-        {thumbnailUrl ? (
+        {imageUrl ? (
           <img
-            src={thumbnailUrl}
+            src={imageUrl}
             alt={`${title}のサムネイル`}
             loading="lazy"
             decoding="async"

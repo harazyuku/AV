@@ -2,9 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 
-import RandomGenerator from './RandomGenerator'
-
-const API = process.env.NEXT_PUBLIC_API_URL || '/api'
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const MIN_QUESTIONS = 5
 const MAX_QUESTIONS = 30
 const ANSWER_TRANSITION_MS = 450
@@ -609,6 +607,9 @@ export default function QuizFinder() {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [answering, setAnswering] = useState(false)
+  const [randomState, setRandomState] = useState<'idle' | 'loading' | 'error'>(
+    'idle',
+  )
   const [error, setError] = useState('')
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [questions, setQuestions] = useState<Question[]>(BASE_QUESTIONS)
@@ -680,6 +681,25 @@ export default function QuizFinder() {
       )
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function openRandomProduct() {
+    if (randomState === 'loading') return
+    setRandomState('loading')
+
+    try {
+      const response = await fetch(API + '/products/imported', {
+        cache: 'no-store',
+      })
+      if (!response.ok) throw new Error('作品を取得できませんでした')
+      const data = await response.json()
+      const products = (data.items || []) as Array<{ id: number }>
+      if (!products.length) throw new Error('作品がありません')
+      const product = products[Math.floor(Math.random() * products.length)]
+      window.location.assign(`/videos/${product.id}`)
+    } catch {
+      setRandomState('error')
     }
   }
 
@@ -767,7 +787,22 @@ export default function QuizFinder() {
           <b>エロ博士に聞く</b>
         </button>
         <div className="discoveryActions">
-          <RandomGenerator />
+          <button
+            className="discoveryAction randomAction"
+            onClick={() => void openRandomProduct()}
+            disabled={randomState === 'loading'}
+          >
+            <span aria-hidden="true">↝</span>
+            <span>
+              <b>
+                {randomState === 'loading'
+                  ? '作品を選んでいます…'
+                  : randomState === 'error'
+                    ? 'もう一度試す'
+                    : 'ランダムで1本選ぶ'}
+              </b>
+            </span>
+          </button>
           <a
             className="discoveryAction fanzaAction"
             href="https://video.dmm.co.jp/av/"
@@ -776,10 +811,8 @@ export default function QuizFinder() {
           >
             <span aria-hidden="true">↗</span>
             <span>
-              <small>PR / FANZA</small>
               <b>FANZAに行く</b>
             </span>
-            <i aria-hidden="true">↗</i>
           </a>
         </div>
       </section>
@@ -843,14 +876,14 @@ export default function QuizFinder() {
                   <div className="quizQuestion">
                     <div className="quizProgress">
                       <span>
-                        QUESTION {String(askedIds.length + 1).padStart(2, '0')}
+                        {String(askedIds.length + 1).padStart(2, '0')}
                         {' / '}
                         {MAX_QUESTIONS}
                       </span>
                       <small>候補 {viableCandidateCount} 作品</small>
                     </div>
                     <div className="quizSpeech">
-                      <small>あなたの探している作品は…</small>
+                      <small>その作品は</small>
                       <h2>{question.text}</h2>
                     </div>
                     {answering ? (

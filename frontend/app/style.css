@@ -1762,7 +1762,7 @@ body {
 .quizLaunchButton:hover {
   transform: translateY(-2px);
   border-color: #f0785988;
-  background: #1b2027;
+  background-color: #1b2027;
 }
 
 .quizLaunchAvatar {
@@ -1823,7 +1823,10 @@ body {
 .discoveryAction:hover {
   transform: translateY(-1px);
   border-color: #f0785977;
-  background: #1b2027;
+}
+
+.discoveryAction:visited {
+  color: var(--ink);
 }
 
 .discoveryAction:disabled {
@@ -2586,7 +2589,12 @@ body {
   }
 
   .videoDetailImage {
-    width: min(280px, 100%);
+    width: 100%;
+    aspect-ratio: 800 / 538;
+  }
+
+  .videoDetailImage img {
+    object-fit: contain;
   }
 
   .videoDetailBody h1 {

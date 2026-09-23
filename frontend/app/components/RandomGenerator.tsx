@@ -212,7 +212,9 @@ export default function RandomGenerator() {
       const finalists = scored.filter(({ score }) => score === highestScore)
       const selected = finalists[Math.floor(Math.random() * finalists.length)]
 
-      window.location.assign(`/videos/${encodeURIComponent(selected.product.external_id.replace(/^missav-/, ''))}`)
+      window.location.assign(
+        `/videos/${encodeURIComponent(selected.product.external_id.replace(/^missav-/, ''))}`,
+      )
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
