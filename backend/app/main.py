@@ -1,6 +1,7 @@
-import asyncio, base64, json, os, random, re, shutil, subprocess, tempfile, threading, time, unicodedata, uuid
+import asyncio, base64, hashlib, json, os, random, re, shutil, subprocess, tempfile, threading, time, unicodedata, uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -670,22 +671,42 @@ FANZA_CONTENT_ID_PREFIXES = {
     "VNDS": "h_254",
     "IRO": "h_086",
     "NHDTC": "1",
+    "START": "1",
     "SW": "1",
 }
-def fanza_content_id(attributes: dict[str, Any]) -> str | None:
+FANZA_FALLBACK_CONTENT_ID_PREFIXES = ("", "1", "h_254", "h_086")
+FANZA_PLACEHOLDER_DIGESTS = {
+    "pl": "ecb1841dd147c6b7e0b092ea390a17ebee3ab0965f5e88a610965769214f5a75",
+    "ps": "373c167c1e71cf0740cfad63dcec89641dd33ca69fe19a31e4ba6449759f35b8",
+}
+THUMBNAIL_RESOLVER_VERSION = 2
+fanza_resolved_image_urls: dict[tuple[str, str], str] = {}
+fanza_image_cache_lock = threading.Lock()
+
+def fanza_content_id_candidates(attributes: dict[str, Any]) -> list[str]:
+    candidates: list[str] = []
     stored_content_id = str(attributes.get("fanza_content_id") or "").strip()
     if stored_content_id:
-        return stored_content_id
+        candidates.append(stored_content_id)
+
     source_metadata = attributes.get("source_metadata")
     metadata = source_metadata if isinstance(source_metadata, dict) else {}
     product_code = str(metadata.get("product_code") or attributes.get("source_id") or "")
     match = re.search(r"([a-z0-9]+)[-_](\d+)", product_code.lower())
     if not match:
-        return None
+        return list(dict.fromkeys(candidates))
+
     product_prefix = match.group(1)
     base_content_id = f"{product_prefix}{int(match.group(2)):05d}"
-    internal_prefix = FANZA_CONTENT_ID_PREFIXES.get(product_prefix.upper(), "")
-    return f"{internal_prefix}{base_content_id}"
+    preferred_prefix = FANZA_CONTENT_ID_PREFIXES.get(product_prefix.upper(), "")
+    for prefix in (preferred_prefix, *FANZA_FALLBACK_CONTENT_ID_PREFIXES):
+        candidates.append(f"{prefix}{base_content_id}")
+    return list(dict.fromkeys(candidates))
+
+def fanza_content_id(attributes: dict[str, Any]) -> str | None:
+    candidates = fanza_content_id_candidates(attributes)
+    return candidates[0] if candidates else None
+
 def fanza_image_url(attributes: dict[str, Any], size: str = "pl") -> str | None:
     stored_url = str(attributes.get("fanza_image_url") or "").strip()
     if stored_url:
@@ -694,6 +715,33 @@ def fanza_image_url(attributes: dict[str, Any], size: str = "pl") -> str | None:
     if not content_id:
         return None
     return f"https://pics.dmm.co.jp/digital/video/{content_id}/{content_id}{size}.jpg"
+
+def fanza_image_url_candidates(attributes: dict[str, Any], size: str) -> list[str]:
+    urls: list[str] = []
+    stored_url = str(attributes.get("fanza_image_url") or "").strip()
+    if stored_url:
+        urls.append(
+            re.sub(r"p[ls]\.jpg(?:\?.*)?$", f"{size}.jpg", stored_url)
+            if re.search(r"p[ls]\.jpg(?:\?.*)?$", stored_url)
+            else stored_url
+        )
+    for content_id in fanza_content_id_candidates(attributes):
+        urls.append(
+            f"https://pics.dmm.co.jp/digital/video/{content_id}/{content_id}{size}.jpg"
+        )
+    return list(dict.fromkeys(urls))
+
+@lru_cache(maxsize=2)
+def fanza_placeholder_digest(size: str) -> str:
+    missing_id = "definitely_missing_av_search_99999"
+    url = f"https://pics.dmm.co.jp/digital/video/{missing_id}/{missing_id}{size}.jpg"
+    try:
+        response = httpx.get(url, timeout=15, follow_redirects=True)
+        response.raise_for_status()
+        return hashlib.sha256(response.content).hexdigest()
+    except httpx.HTTPError:
+        return FANZA_PLACEHOLDER_DIGESTS.get(size, "")
+
 @app.get("/media/thumbnail/{external_id}")
 def proxy_thumbnail(external_id: str, size: str = "large", s: Session = Depends(db)):
     product = s.scalar(select(Product).where(or_(
@@ -702,17 +750,41 @@ def proxy_thumbnail(external_id: str, size: str = "large", s: Session = Depends(
         Product.attributes["source_id"].astext == external_id,
     )))
     if not product: raise HTTPException(404, "product not found")
-    image_url = fanza_image_url(
-        product.attributes or {},
-        "ps" if size == "small" else "pl",
-    )
-    if not image_url: raise HTTPException(404, "thumbnail not found")
-    try:
-        image = httpx.get(image_url, timeout=15, follow_redirects=True)
-        image.raise_for_status()
-    except httpx.HTTPError as exc:
-        raise HTTPException(502, "thumbnail provider unavailable") from exc
-    return Response(content=image.content, media_type=image.headers.get("content-type", "image/jpeg"), headers={"Cache-Control": "public, max-age=86400"})
+    image_size = "ps" if size == "small" else "pl"
+    cache_key = (product.external_id, image_size)
+    with fanza_image_cache_lock:
+        cached_url = fanza_resolved_image_urls.get(cache_key)
+    candidate_urls = fanza_image_url_candidates(product.attributes or {}, image_size)
+    if cached_url:
+        candidate_urls = [cached_url, *[url for url in candidate_urls if url != cached_url]]
+    if not candidate_urls:
+        raise HTTPException(404, "thumbnail not found")
+
+    placeholder_digest = fanza_placeholder_digest(image_size)
+
+    provider_failed = False
+    for image_url in candidate_urls:
+        try:
+            image = httpx.get(image_url, timeout=15, follow_redirects=True)
+            image.raise_for_status()
+        except httpx.HTTPError:
+            provider_failed = True
+            continue
+        if not image.headers.get("content-type", "").startswith("image/"):
+            continue
+        if placeholder_digest and hashlib.sha256(image.content).hexdigest() == placeholder_digest:
+            continue
+        with fanza_image_cache_lock:
+            fanza_resolved_image_urls[cache_key] = image_url
+        return Response(
+            content=image.content,
+            media_type=image.headers.get("content-type", "image/jpeg"),
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
+
+    if provider_failed:
+        raise HTTPException(502, "thumbnail provider unavailable")
+    raise HTTPException(404, "thumbnail not found")
 def product_json(p: Product) -> dict[str, Any]:
     attributes = p.attributes or {}
     stored_visual = attributes.get("visual_analysis")
@@ -764,8 +836,8 @@ def product_json(p: Product) -> dict[str, Any]:
         "visual_analysis": visual_analysis,
         "media": {
             "fanza_content_id": fanza_content_id(attributes),
-            "thumbnail_url": f"/api/media/thumbnail/{attributes.get('source_id')}" if fanza_image_url(attributes) and attributes.get("source_id") else None,
-            "thumbnail_small_url": f"/api/media/thumbnail/{attributes.get('source_id')}?size=small" if fanza_image_url(attributes) and attributes.get("source_id") else None,
+            "thumbnail_url": f"/api/media/thumbnail/{attributes.get('source_id')}?v={THUMBNAIL_RESOLVER_VERSION}" if fanza_image_url(attributes) and attributes.get("source_id") else None,
+            "thumbnail_small_url": f"/api/media/thumbnail/{attributes.get('source_id')}?size=small&v={THUMBNAIL_RESOLVER_VERSION}" if fanza_image_url(attributes) and attributes.get("source_id") else None,
             "provider": "FANZA",
         },
         "created_at": p.created_at.isoformat() if p.created_at else None,
